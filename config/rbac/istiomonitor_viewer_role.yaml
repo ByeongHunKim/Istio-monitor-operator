@@ -1,0 +1,23 @@
+# permissions for end users to view istiomonitors.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: istio-monitor
+    app.kubernetes.io/managed-by: kustomize
+  name: istiomonitor-viewer-role
+rules:
+- apiGroups:
+  - monitoring.istio-ops.meiko.co.kr
+  resources:
+  - istiomonitors
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - monitoring.istio-ops.meiko.co.kr
+  resources:
+  - istiomonitors/status
+  verbs:
+  - get

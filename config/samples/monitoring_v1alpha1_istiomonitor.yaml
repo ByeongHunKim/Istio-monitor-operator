@@ -1,0 +1,9 @@
+apiVersion: monitoring.istio-ops.meiko.co.kr/v1alpha1
+kind: IstioMonitor
+metadata:
+  labels:
+    app.kubernetes.io/name: istio-monitor
+    app.kubernetes.io/managed-by: kustomize
+  name: istiomonitor-sample
+spec:
+  # TODO(user): Add fields here
