@@ -86,15 +86,54 @@ func (r *IstioMonitorReconciler) monitorIstioResource(ctx context.Context, resou
 		return fmt.Errorf("failed to list %s: %w", resourceType, err)
 	}
 
+	// create current resource map
+	currentResources := make(map[string]metav1.Time)
 	for _, item := range list.Items {
-		lastModified := item.GetCreationTimestamp()
-		if lastModified.After(istioMonitor.Status.LastNotificationTime.Time) {
-			message := fmt.Sprintf("%s changed: %s in namespace %s", resourceType, item.GetName(), item.GetNamespace())
-			log.Info("Detected change in Istio resource", "resourceType", resourceType, "name", item.GetName(), "namespace", item.GetNamespace())
+		key := fmt.Sprintf("%s/%s", item.GetNamespace(), item.GetName())
+		currentResources[key] = item.GetCreationTimestamp()
+	}
+
+	// take previous resource map or initialize
+	previousResources := istioMonitor.Status.PreviousResources
+	if previousResources == nil {
+		previousResources = make(map[string]metav1.Time)
+	}
+
+	// check the differences
+	for key, currentTime := range currentResources {
+		if prevTime, exists := previousResources[key]; !exists {
+			// new resources
+			message := fmt.Sprintf("%s created: %s", resourceType, key)
+			log.Info("Detected new Istio resource", "resourceType", resourceType, "resource", key)
+			if err := r.sendSlackNotification(istioMonitor.Spec.SlackWebhookURL, message); err != nil {
+				log.Error(err, "Failed to send Slack notification", "message", message)
+			}
+		} else if currentTime != prevTime {
+			// updated resources
+			message := fmt.Sprintf("%s modified: %s", resourceType, key)
+			log.Info("Detected modified Istio resource", "resourceType", resourceType, "resource", key)
 			if err := r.sendSlackNotification(istioMonitor.Spec.SlackWebhookURL, message); err != nil {
 				log.Error(err, "Failed to send Slack notification", "message", message)
 			}
 		}
+	}
+
+	// deleted resources
+	for key := range previousResources {
+		if _, exists := currentResources[key]; !exists {
+			message := fmt.Sprintf("%s deleted: %s", resourceType, key)
+			log.Info("Detected deleted Istio resource", "resourceType", resourceType, "resource", key)
+			if err := r.sendSlackNotification(istioMonitor.Spec.SlackWebhookURL, message); err != nil {
+				log.Error(err, "Failed to send Slack notification", "message", message)
+			}
+		}
+	}
+
+	// update resource status
+	istioMonitor.Status.PreviousResources = currentResources
+	if err := r.Status().Update(ctx, istioMonitor); err != nil {
+		log.Error(err, "Unable to update IstioMonitor status")
+		return err
 	}
 
 	return nil

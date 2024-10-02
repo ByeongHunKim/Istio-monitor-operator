@@ -42,7 +42,8 @@ type IstioMonitorStatus struct {
 
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	LastNotificationTime metav1.Time `json:"lastNotificationTime,omitempty"`
+	LastNotificationTime metav1.Time            `json:"lastNotificationTime,omitempty"`
+	PreviousResources    map[string]metav1.Time `json:"previousResources,omitempty"`
 }
 
 //+kubebuilder:object:root=true
